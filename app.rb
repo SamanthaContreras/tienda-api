@@ -40,7 +40,7 @@ put '/tienda/users/:id' do
   user = User.where(id: params['id'])
 
   if user
-    user.name = params['name'] if params.has_key('name')
+    user.name = params['name'] if params.has_key?('name')
     if user.save
       user.to_json
     else
@@ -89,8 +89,8 @@ put '/tienda/products/:id' do
   product = Product.where(id: params['id']).first
 
   if product
-    product.name = params['name'] if params.has_key('name')
-    product.price = params['price'].to_f if params.has_key('price')
+    product.name = params['name'] if params.has_key?('name')
+    product.price = params['price'].to_f if params.has_key?('price')
 
     if product.save
       product.to_json
