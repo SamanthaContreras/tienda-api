@@ -162,30 +162,34 @@ end
 # Adds a product to an order
 post '/tienda/users/:user/orders/:order/add/:qty/:product' do
   import = Product.where(id: params['product']).first.price*params['qty'].to_f
-  entry = Entry.new(order_id: params['order'].to_i,
-                    product_id: params['product'].to_i,
-                    qty: params['qty'].to_i,
-                    import: import)
+  if Order.where('id = ? AND user_id = ?', params['order'], params['user']).first
+    entry = Entry.new(order_id: params['order'].to_i,
+                      product_id: params['product'].to_i,
+                      qty: params['qty'].to_i,
+                      import: import)
 
-  if entry.save
-    order = Order.where(id: params['order']).first
-    order.sub_total += import
-    order.iva = order.sub_total*0.16
-    order.total = order.sub_total+order.iva
+    if entry.save
+      order = Order.where(id: params['order']).first
+      order.sub_total += import
+      order.iva = order.sub_total*0.16
+      order.total = order.sub_total+order.iva
 
-    if order.save
-      order.to_json(
-        include:
-            { entries:
-                  { include: { product: { except: :id } },
-                    except: [:product_id, :order_id, :id] }
-            },
-        except: :user_id)
+      if order.save
+        order.to_json(
+          include:
+              { entries:
+                    { include: { product: { except: :id } },
+                      except: [:product_id, :order_id, :id] }
+              },
+          except: :user_id)
+      else
+        halt 500
+      end
     else
-      halt 500
+      halt 422, entry.errors.full_messages.to_json
     end
   else
-    halt 422, entry.errors.full_messages.to_json
+    halt 422, 'El usuario no contiene ese pedido'
   end
 end
 
@@ -193,25 +197,29 @@ end
 delete '/tienda/users/:user/orders/:order/delete/:product' do
   entry = Entry.where('order_id = ? AND product_id = ?', params['order'], params['product']).first
 
-  if entry.destroy
-    order = Order.where(id: params['order']).first
-    order.sub_total -= entry.import
-    order.iva = order.sub_total*0.16
-    order.total = order.sub_total+order.iva
+  if Order.where('id = ? AND user_id = ?', params['order'], params['user']).first
+    if entry.destroy
+      order = Order.where(id: params['order']).first
+      order.sub_total -= entry.import
+      order.iva = order.sub_total*0.16
+      order.total = order.sub_total+order.iva
 
-    if order.save
-      order.to_json(
-                  include:
-                      { entries:
-                            { include: { product: { except: :id } },
-                              except: [:product_id, :order_id, :id] }
-                      },
-                  except: :user_id)
+      if order.save
+        order.to_json(
+                    include:
+                        { entries:
+                              { include: { product: { except: :id } },
+                                except: [:product_id, :order_id, :id] }
+                        },
+                    except: :user_id)
+      else
+        halt 500
+      end
     else
       halt 500
     end
   else
-    halt 500
+    halt 422, 'El usuario no contiene ese pedido'
   end
 
 end
